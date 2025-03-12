@@ -118,7 +118,6 @@ pub fn main() !void {
     for (0..device_list.count()) |i| {
         const device = device_list.at(i);
         const dimensions = device.getDimensions();
-        std.debug.print("Device dimensions: {} x {}\n", .{ dimensions.width, dimensions.height });
         if (dimensions.width * dimensions.height > largest_dimensions.width * largest_dimensions.height) {
             largest_device = device;
             largest_dimensions = dimensions;

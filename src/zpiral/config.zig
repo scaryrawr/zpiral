@@ -85,7 +85,6 @@ test "should be able to get a config path" {
     const config_path = try getConfigPath(allocator);
     defer allocator.free(config_path);
 
-    // std.debug.print("Config path: {s}\n", .{config_path});
     try std.testing.expectStringEndsWith(config_path, "/.config/zpiral/zpiral.toml");
 }
 
