@@ -45,10 +45,10 @@ This is what I'm using for 3 finger swipe left/right to switch workspaces in [ae
 [[events]]
 num_fingers = 3
 gesture = 'SwipeLeft'
-command = 'aerospace workspace --wrap-around prev'
+command = 'aerospace workspace --wrap-around next'
 
 [[events]]
 num_fingers = 3
 gesture = 'SwipeRight'
-command = 'aerospace workspace --wrap-around next'
+command = 'aerospace workspace --wrap-around prev'
 ```
