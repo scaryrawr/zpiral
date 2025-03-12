@@ -35,17 +35,17 @@ pub const Finger = extern struct {
     z_density: f32,
 };
 
-const MTAnyContactCallback = struct {
+const MTAnyContactFrameCallback = struct {
     context: *anyopaque,
     callbackFn: *const fn (device: *MTDevice, fingers: [*c]Finger, count: i32, timestamp: f64, frame: i32, context: *anyopaque) callconv(.c) void,
 };
 
-pub fn GenericContactCallback(comptime Context: type, comptime callbackFn: fn (context: Context, device: *MTDevice, fingers: []Finger, timestamp: f64, frame: i32) void) type {
+pub fn GenericContactFrameCallback(comptime Context: type, comptime callbackFn: fn (context: Context, device: *MTDevice, fingers: []Finger, timestamp: f64, frame: i32) void) type {
     return struct {
         context: Context,
         const Self = @This();
 
-        pub inline fn any(self: *Self) MTAnyContactCallback {
+        pub inline fn any(self: *Self) MTAnyContactFrameCallback {
             return .{ .context = @ptrCast(&self.context), .callbackFn = callback };
         }
 
@@ -56,7 +56,7 @@ pub fn GenericContactCallback(comptime Context: type, comptime callbackFn: fn (c
     };
 }
 
-pub const MTContactCallback = GenericContactCallback;
+pub const MTContactFrameCallback = GenericContactFrameCallback;
 
 pub const MTDevice = opaque {
     const Self = @This();
@@ -82,11 +82,11 @@ pub const MTDevice = opaque {
         MTDeviceStop(self);
     }
 
-    pub fn registerContactCallback(self: *Self, callback: MTAnyContactCallback) bool {
+    pub fn registerContactFrameCallback(self: *Self, callback: MTAnyContactFrameCallback) bool {
         return MTRegisterContactFrameCallbackWithRefcon(self, callback.callbackFn, callback.context) != 0;
     }
 
-    pub fn unregisterContactCallback(self: *Self, callback: MTAnyContactCallback) void {
+    pub fn unregisterContactFrameCallback(self: *Self, callback: MTAnyContactFrameCallback) void {
         return MTUnregisterContactFrameCallback(self, callback.callbackFn);
     }
 
@@ -108,10 +108,10 @@ pub const MTDevice = opaque {
     extern fn MTDeviceStop(device: *MTDevice) void;
     extern fn MTDeviceIsRunning(device: *MTDevice) bool;
 
-    const ContactCallbackFunction = *const fn (device: *MTDevice, fingers: [*c]Finger, count: i32, timestamp: f64, frame: i32, context: *anyopaque) callconv(.c) void;
-    extern fn MTRegisterContactFrameCallback(device: *MTDevice, callback: ContactCallbackFunction) i32;
-    extern fn MTRegisterContactFrameCallbackWithRefcon(device: *MTDevice, callback: ContactCallbackFunction, context: *anyopaque) i32;
-    extern fn MTUnregisterContactFrameCallback(device: *MTDevice, callback: ContactCallbackFunction) void;
+    const ContactFrameCallbackFunction = *const fn (device: *MTDevice, fingers: [*c]Finger, count: i32, timestamp: f64, frame: i32, context: *anyopaque) callconv(.c) void;
+    extern fn MTRegisterContactFrameCallback(device: *MTDevice, callback: ContactFrameCallbackFunction) i32;
+    extern fn MTRegisterContactFrameCallbackWithRefcon(device: *MTDevice, callback: ContactFrameCallbackFunction, context: *anyopaque) i32;
+    extern fn MTUnregisterContactFrameCallback(device: *MTDevice, callback: ContactFrameCallbackFunction) void;
 };
 
 pub const MTDeviceList = opaque {
@@ -192,9 +192,9 @@ test "should be able to register fancy callback" {
         }
     }.cb;
 
-    const NullCallback = MTContactCallback(void, dummyCallback);
+    const NullCallback = MTContactFrameCallback(void, dummyCallback);
     var null_callback: NullCallback = .{ .context = {} };
 
-    try testing.expect(device.registerContactCallback(null_callback.any()));
-    defer device.unregisterContactCallback(null_callback.any());
+    try testing.expect(device.registerContactFrameCallback(null_callback.any()));
+    defer device.unregisterContactFrameCallback(null_callback.any());
 }

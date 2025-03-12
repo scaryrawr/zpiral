@@ -49,12 +49,13 @@ pub fn main() !void {
     defer device_list.release();
 
     const config = parsed.value;
-    const Callback = multitouch.MTContactCallback([]const cl.TouchEvent, touchCallback);
+    const Callback = multitouch.MTContactFrameCallback([]const cl.TouchEvent, touchCallback);
     var cb_instance: Callback = .{ .context = config.events };
 
+    // Default device on MacBooks with the touch bar is the touch bar,
+    // so we need to search for what we hope is the touchpad.
     var largest_device = device_list.at(0);
     var largest_dimensions = largest_device.getDimensions();
-
     for (0..device_list.count()) |i| {
         const device = device_list.at(i);
         const dimensions = device.getDimensions();
@@ -67,11 +68,11 @@ pub fn main() !void {
 
     const device = largest_device;
 
-    if (!device.registerContactCallback(cb_instance.any())) {
+    if (!device.registerContactFrameCallback(cb_instance.any())) {
         @panic("Failed to register contact callback");
     }
 
-    defer device.unregisterContactCallback(cb_instance.any());
+    defer device.unregisterContactFrameCallback(cb_instance.any());
     if (!device.start(0)) {
         @panic("Failed to start the multitouch device");
     }
