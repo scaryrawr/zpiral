@@ -104,4 +104,5 @@ extern fn CFRunLoopRun() void;
 test {
     // Import config.zig to ensure its tests are run
     _ = @import("config.zig");
+    _ = @import("event_handler.zig");
 }
