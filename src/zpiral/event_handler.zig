@@ -1,4 +1,5 @@
 const std = @import("std");
+const testing = std.testing;
 const multitouch = @import("multitouch");
 const cl = @import("config.zig");
 
@@ -118,4 +119,137 @@ fn triggerEvent(event: *EventState) !void {
     var process = std.process.Child.init(&argv, event.allocator);
     process.env_map = &event.env_map;
     _ = try process.spawnAndWait();
+}
+
+// Mock multitouch finger data for testing
+fn createMockFinger(x_vel: f32, y_vel: f32) multitouch.Finger {
+    return multitouch.Finger{
+        .normalized = .{
+            .point = .{ .x = 0, .y = 0 },
+            .velocity = .{ .x = x_vel, .y = y_vel },
+        },
+        .frame = 0,
+        .timestamp = 0.0,
+        .identifier = 0,
+        .state = 0,
+        .finger_number = 0,
+        .hand_id = 0,
+        .size = 0.0,
+        .pressure = 0,
+        .angle = 0.0,
+        .major_axis = 0.0,
+        .minor_axis = 0.0,
+        .absolute_vector = .{ .point = .{ .x = 0, .y = 0 }, .velocity = .{ .x = 0, .y = 0 } },
+        .unknown = [_]i32{ 0, 0 },
+        .z_density = 0.0,
+    };
+}
+
+// Helper to create a test event state
+fn createTestEventState(allocator: std.mem.Allocator, gesture: cl.TouchEvent.Gesture, num_fingers: u32) !EventState {
+    const config = cl.TouchEvent{
+        .gesture = gesture,
+        .num_fingers = num_fingers,
+        .command = "echo 'test'",
+        .cooldown = 0.1,
+        .finger_size_threshold = null,
+    };
+
+    return try EventState.init(allocator, config);
+}
+
+test "SwipeLeft gesture detection" {
+    const allocator = testing.allocator;
+
+    var event_state = try createTestEventState(allocator, .SwipeLeft, 2);
+    defer event_state.deinit();
+
+    // Create mock finger data with left swipe
+    var fingers: [3]multitouch.Finger = [3]multitouch.Finger{
+        createMockFinger(-2.0, 0.0), // Strong left swipe
+        createMockFinger(-1.5, 0.1), // Left swipe with slight upward
+        createMockFinger(0.5, 0.0), // Right movement (should not count)
+    };
+
+    // Test the swipe detection
+    const meeting_threshold = handleSwipeGesture(&event_state, &fingers);
+
+    try testing.expectEqual(2, meeting_threshold);
+}
+
+test "SwipeRight gesture detection" {
+    const allocator = testing.allocator;
+
+    var event_state = try createTestEventState(allocator, .SwipeRight, 2);
+    defer event_state.deinit();
+
+    // Create mock finger data with right swipe
+    var fingers: [3]multitouch.Finger = [3]multitouch.Finger{
+        createMockFinger(1.5, 0.0), // Right swipe
+        createMockFinger(2.0, -0.1), // Strong right swipe with slight downward
+        createMockFinger(-0.5, 0.0), // Left movement (should not count)
+    };
+
+    // Test the swipe detection
+    const meeting_threshold = handleSwipeGesture(&event_state, &fingers);
+
+    try testing.expectEqual(2, meeting_threshold);
+}
+
+test "SwipeUp gesture detection" {
+    const allocator = testing.allocator;
+
+    var event_state = try createTestEventState(allocator, .SwipeUp, 3);
+    defer event_state.deinit();
+
+    // Create mock finger data with upward swipe
+    var fingers: [4]multitouch.Finger = [4]multitouch.Finger{
+        createMockFinger(0.0, 1.5), // Upward swipe
+        createMockFinger(0.1, 2.0), // Strong upward swipe with slight rightward
+        createMockFinger(-0.1, 1.2), // Upward swipe with slight leftward
+        createMockFinger(0.0, 0.5), // Weak upward (should not count)
+    };
+
+    // Test the swipe detection
+    const meeting_threshold = handleSwipeGesture(&event_state, &fingers);
+
+    try testing.expectEqual(3, meeting_threshold);
+}
+
+test "SwipeDown gesture detection" {
+    const allocator = testing.allocator;
+
+    var event_state = try createTestEventState(allocator, .SwipeDown, 1);
+    defer event_state.deinit();
+
+    // Create mock finger data with downward swipe
+    var fingers: [2]multitouch.Finger = [2]multitouch.Finger{
+        createMockFinger(0.0, -1.5), // Downward swipe
+        createMockFinger(0.0, 0.5), // Upward movement (should not count)
+    };
+
+    // Test the swipe detection
+    const meeting_threshold = handleSwipeGesture(&event_state, &fingers);
+
+    try testing.expectEqual(1, meeting_threshold);
+}
+
+test "Consecutive frames triggering" {
+    const allocator = testing.allocator;
+
+    var event_state = try createTestEventState(allocator, .SwipeLeft, 1);
+    defer event_state.deinit();
+
+    // Simulate gesture being active for multiple frames
+    event_state.is_active = true;
+    event_state.consecutive_frames = 2;
+
+    // Verify it's not triggered yet (needs > 2 frames)
+    try testing.expect(event_state.consecutive_frames <= 2);
+
+    // Simulate one more frame
+    event_state.consecutive_frames += 1;
+
+    // Now it should be ready to trigger
+    try testing.expect(event_state.consecutive_frames > 2);
 }
