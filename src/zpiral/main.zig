@@ -26,16 +26,69 @@ fn runCommand(command: []const u8) void {
     };
 }
 
-fn touchCallback(events: []const cl.TouchEvent, _: *multitouch.MTDevice, fingers: []multitouch.Finger, _: f64, _: i32) void {
+const EventState = struct {
+    /// The event configuration
+    config: cl.TouchEvent,
+    /// The event criteria is currently being met
+    is_active: bool,
+    /// The last time the event was triggered
+    last_run: ?f64,
+    /// Consecutive frames
+    consecutive_frames: i32,
+    pub fn init(config: cl.TouchEvent) EventState {
+        return EventState{
+            .config = config,
+            .is_active = false,
+            .last_run = null,
+            .consecutive_frames = 0,
+        };
+    }
+
+    pub fn reset(self: *EventState) void {
+        self.is_active = false;
+        self.consecutive_frames = 0;
+    }
+};
+
+fn touchCallback(events: []EventState, _: *multitouch.MTDevice, fingers: []multitouch.Finger, timestamp: f64, _: i32) void {
     // Check for swipe gestures and run the corresponding command
-    for (events) |event| {
-        if (fingers.len >= event.num_fingers) {
+    for (events) |*event| {
+        if (event.last_run) |last_run| {
+            // Check if the event can be triggered again, if not, skip evaluation.
+            const cooldown = if (event.config.cooldown) |cooldown| cooldown else 0.3;
+            if ((timestamp - last_run) < cooldown) {
+                continue;
+            }
+        }
+
+        if (fingers.len == event.config.num_fingers) {
+            var avg_velocity_x: f64 = 0;
+            var avg_velocity_y: f64 = 0;
+
+            for (fingers) |finger| {
+                avg_velocity_x += finger.normalized.velocity.x;
+                avg_velocity_y += finger.normalized.velocity.y;
+            }
+
+            avg_velocity_x /= @floatFromInt(fingers.len);
+            avg_velocity_y /= @floatFromInt(fingers.len);
+
             // Simplified gesture detection logic
-            switch (event.direction) {
-                cl.TouchEvent.Direction.Left => if (fingers[0].normalized.velocity.x < -1.0) runCommand(event.command),
-                cl.TouchEvent.Direction.Right => if (fingers[0].normalized.velocity.x > 1.0) runCommand(event.command),
-                cl.TouchEvent.Direction.Up => if (fingers[0].normalized.velocity.y > 1.0) runCommand(event.command),
-                cl.TouchEvent.Direction.Down => if (fingers[0].normalized.velocity.y < -1.0) runCommand(event.command),
+            if (switch (event.config.gesture) {
+                cl.TouchEvent.Gesture.SwipeLeft => avg_velocity_x < -1.0,
+                cl.TouchEvent.Gesture.SwipeRight => avg_velocity_x > 1.0,
+                cl.TouchEvent.Gesture.SwipeUp => avg_velocity_y > 1.0,
+                cl.TouchEvent.Gesture.SwipeDown => avg_velocity_y < -1.0,
+            }) {
+                event.is_active = true;
+                event.consecutive_frames += 1;
+            } else {
+                event.reset();
+            }
+
+            if (event.consecutive_frames > 2) {
+                runCommand(event.config.command);
+                event.last_run = timestamp;
             }
         }
     }
@@ -49,8 +102,14 @@ pub fn main() !void {
     defer device_list.release();
 
     const config = parsed.value;
-    const Callback = multitouch.MTContactFrameCallback([]const cl.TouchEvent, touchCallback);
-    var cb_instance: Callback = .{ .context = config.events };
+    const Callback = multitouch.MTContactFrameCallback([]EventState, touchCallback);
+    var event_state = try allocator.alloc(EventState, config.events.len);
+    defer allocator.free(event_state);
+    for (config.events, 0..) |event, i| {
+        event_state[i] = EventState.init(event);
+    }
+
+    var cb_instance: Callback = .{ .context = event_state };
 
     // Default device on MacBooks with the touch bar is the touch bar,
     // so we need to search for what we hope is the touchpad.

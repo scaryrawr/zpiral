@@ -2,15 +2,22 @@ const std = @import("std");
 const toml = @import("toml");
 
 pub const TouchEvent = struct {
-    pub const Direction = enum {
-        Up,
-        Down,
-        Left,
-        Right,
+    pub const Gesture = enum {
+        SwipeUp,
+        SwipeDown,
+        SwipeLeft,
+        SwipeRight,
     };
+    /// Number of fingers required in the gesture
     num_fingers: u32,
-    direction: Direction,
+    /// Gesture to trigger the command.
+    gesture: Gesture,
+    /// Command to run when the event is triggered.
     command: []const u8,
+    /// Threshold size for finger to be considered.
+    finger_size_threshold: ?f32,
+    /// The cooldown time in seconds for event to trigger again
+    cooldown: ?f64,
 };
 
 pub const Config = struct {
@@ -86,7 +93,7 @@ test "should parse single event" {
     const config_str =
         \\[[events]]
         \\num_fingers = 2
-        \\direction = 'Up'
+        \\gesture = 'SwipeUp'
         \\command = 'echo Up'
     ;
     const config = try loadConfig(std.testing.allocator, config_str);
@@ -95,19 +102,19 @@ test "should parse single event" {
     const events = config.value;
     try std.testing.expect(events.events.len == 1);
     try std.testing.expect(events.events[0].num_fingers == 2);
-    try std.testing.expect(events.events[0].direction == TouchEvent.Direction.Up);
+    try std.testing.expect(events.events[0].gesture == TouchEvent.Gesture.SwipeUp);
 }
 
 test "should parse multiple event" {
     const config_str =
         \\[[events]]
         \\num_fingers = 2
-        \\direction = 'Up'
+        \\gesture = 'SwipeUp'
         \\command = 'echo Up'
         \\
         \\[[events]]
         \\num_fingers = 3
-        \\direction = 'Left'
+        \\gesture = 'SwipeLeft'
         \\command = 'echo Left'
     ;
 
@@ -117,7 +124,7 @@ test "should parse multiple event" {
     const events = config.value;
     try std.testing.expect(events.events.len == 2);
     try std.testing.expect(events.events[0].num_fingers == 2);
-    try std.testing.expect(events.events[0].direction == TouchEvent.Direction.Up);
+    try std.testing.expect(events.events[0].gesture == TouchEvent.Gesture.SwipeUp);
     try std.testing.expect(events.events[1].num_fingers == 3);
-    try std.testing.expect(events.events[1].direction == TouchEvent.Direction.Left);
+    try std.testing.expect(events.events[1].gesture == TouchEvent.Gesture.SwipeLeft);
 }
