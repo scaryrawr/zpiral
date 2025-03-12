@@ -52,3 +52,11 @@ num_fingers = 3
 gesture = 'SwipeRight'
 command = 'aerospace workspace --wrap-around prev'
 ```
+
+## Installation
+
+```bash
+brew install scaryrawr/formulae/zpiral
+# After setting up your config file
+brew services start zpiral
+```
