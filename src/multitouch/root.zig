@@ -93,6 +93,16 @@ pub const MTDevice = opaque {
     pub fn getDimensions(self: *Self) MTDimensions {
         var width: i32 = 0;
         var height: i32 = 0;
+        if (MTDeviceGetSensorDimensions(self, &width, &height) != 0) {
+            return MTDimensions{ .width = 0, .height = 0 }; // or some error case
+        }
+
+        return MTDimensions{ .width = width, .height = height };
+    }
+
+    pub fn getSurfaceDimensions(self: *Self) MTDimensions {
+        var width: i32 = 0;
+        var height: i32 = 0;
         if (MTDeviceGetSensorSurfaceDimensions(self, &width, &height) != 0) {
             return MTDimensions{ .width = 0, .height = 0 }; // or some error case
         }
@@ -101,7 +111,7 @@ pub const MTDevice = opaque {
     }
 
     extern fn MTDeviceGetSensorSurfaceDimensions(device: *MTDevice, width: *i32, height: *i32) i32;
-
+    extern fn MTDeviceGetSensorDimensions(device: *MTDevice, width: *i32, height: *i32) i32;
     extern fn MTDeviceCreateDefault() ?*MTDevice;
     extern fn MTDeviceRelease(device: *MTDevice) void;
     extern fn MTDeviceStart(device: *MTDevice, mode: i32) i32;
@@ -197,4 +207,28 @@ test "should be able to register fancy callback" {
 
     try testing.expect(device.registerContactFrameCallback(null_callback.any()));
     defer device.unregisterContactFrameCallback(null_callback.any());
+}
+
+test "should get device dimensions" {
+    const device = MTDevice.init() catch |err| {
+        std.debug.print("Error: {}\n", .{err});
+        return err;
+    };
+    defer device.release();
+
+    const dimensions = device.getDimensions();
+    try testing.expect(dimensions.width > 0);
+    try testing.expect(dimensions.height > 0);
+}
+
+test "should get device surface dimensions" {
+    const device = MTDevice.init() catch |err| {
+        std.debug.print("Error: {}\n", .{err});
+        return err;
+    };
+    defer device.release();
+
+    const surface_dimensions = device.getSurfaceDimensions();
+    try testing.expect(surface_dimensions.width > 0);
+    try testing.expect(surface_dimensions.height > 0);
 }
