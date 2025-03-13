@@ -85,7 +85,7 @@ pub fn touchCallback(events: []EventState, _: *multitouch.MTDevice, fingers: []m
         };
 
         // If enough fingers meet the threshold, mark the event as active
-        if (fingers_meeting_threshold >= event.config.num_fingers) {
+        if (fingers_meeting_threshold == event.config.num_fingers) {
             event.is_active = true;
             event.consecutive_frames += 1;
         } else {
