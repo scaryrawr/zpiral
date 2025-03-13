@@ -99,6 +99,7 @@ pub fn touchCallback(events: []EventState, _: *multitouch.MTDevice, fingers: []m
                 std.debug.print("Error triggering event: {}\n", .{err});
             };
             event.last_run = timestamp;
+            event.reset();
         }
     }
 }

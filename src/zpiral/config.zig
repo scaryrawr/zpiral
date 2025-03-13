@@ -24,40 +24,33 @@ pub const Config = struct {
     events: []const TouchEvent,
 };
 
+fn getHomeConfigDir(allocator: std.mem.Allocator, home: ?[]const u8) ![]const u8 {
+    if (home) |h| {
+        const paths = [_][]const u8{ h, ".config" };
+        return try std.fs.path.join(allocator, &paths);
+    }
+
+    const paths = [_][]const u8{ "~", ".config" };
+    return try std.fs.path.join(allocator, &paths);
+}
+
 fn getConfigHome(allocator: std.mem.Allocator) ![]const u8 {
     var env_map = try std.process.getEnvMap(allocator);
     defer env_map.deinit();
 
-    const config_home = env_map.get("XDG_CONFIG_HOME") orelse "~/.config";
-    if (config_home[0] == '~') {
-        if (env_map.get("HOME")) |home| {
-            const config_home_replace = try allocator.alloc(u8, config_home.len + home.len - 1);
-            errdefer allocator.free(config_home_replace);
-
-            std.mem.copyForwards(u8, config_home_replace, home);
-            std.mem.copyForwards(u8, config_home_replace[home.len..], config_home[1..]);
-            return config_home_replace;
-        }
+    if (env_map.get("XDG_CONFIG_HOME")) |config_home| {
+        return try allocator.dupe(u8, config_home);
     }
 
-    return try allocator.dupe(u8, config_home);
+    return getHomeConfigDir(allocator, env_map.get("HOME"));
 }
 
 fn getConfigPath(allocator: std.mem.Allocator) ![]const u8 {
-    var env_map = try std.process.getEnvMap(allocator);
-    defer env_map.deinit();
-
     const config_home = try getConfigHome(allocator);
     defer allocator.free(config_home);
 
-    const sub_path = "/zpiral/zpiral.toml";
-    const config_path = try allocator.alloc(u8, config_home.len + sub_path.len);
-    errdefer allocator.free(config_path);
-
-    std.mem.copyForwards(u8, config_path, config_home);
-    std.mem.copyForwards(u8, config_path[config_home.len..], sub_path);
-
-    return config_path;
+    const paths = [_][]const u8{ config_home, "zpiral", "zpiral.toml" };
+    return try std.fs.path.join(allocator, &paths);
 }
 
 fn loadConfig(allocator: std.mem.Allocator, config_str: []const u8) !toml.Parsed(Config) {
