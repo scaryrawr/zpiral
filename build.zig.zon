@@ -28,7 +28,7 @@
 
     // Tracks the earliest Zig version that the package considers to be a
     // supported use case.
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.15.1",
 
     // This field is optional.
     // Each dependency must either provide a `url` and `hash`, or a `path`.
@@ -37,8 +37,8 @@
     // internet connectivity.
     .dependencies = .{
         .toml = .{
-            .url = "git+https://github.com/sam701/zig-toml#ba2cc3ebe190283c2b62cdfbe2866d92a6eaa5f7",
-            .hash = "toml-0.0.0-bV14BXxHAQDPr7ZlYgYeG7ZXIxKvbazpCfJoRoYm-kzs",
+            .url = "git+https://github.com/sam701/zig-toml#3aaeb0bf14935eabae118196f7949b404a42f8ea",
+            .hash = "toml-0.3.0-bV14BTd8AQA-wZERtB3dvRE3eSZ-m48AyXFUGkZ_Tm3d",
         },
     },
     .paths = .{
